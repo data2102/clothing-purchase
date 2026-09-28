@@ -24,6 +24,7 @@
   --good:#6CCB91; --good-soft:#1C3325; --warn:#E6A45B; --warn-soft:#3A2A17; --bad:#F08A8A; --bad-soft:#3D1F21;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55}
 .wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:24px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
 h1{font-size:24px;margin:0;text-wrap:balance;letter-spacing:-.01em}
@@ -66,8 +67,7 @@ details.panel[open]>summary::after{content:"−"}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
-/* my sizes */
-.mine-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+/* tables */
 .tbl-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -175,9 +175,33 @@ dialog.zoom p{color:#fff;text-align:center;margin:8px 0 0;font-size:13px}
   .foot a{font-size:14px;padding:6px 0}
   .dec{width:100%}
   .dec button{flex:1;min-height:44px;font-size:14px}
-  .mine-grid{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion: no-preference){.card{transition:opacity .15s,border-color .15s}}
+/* photo picker */
+.thumbs .th{position:relative;padding:0;border:2px solid transparent;border-radius:8px;background:none;line-height:0}
+.thumbs .th[aria-pressed="true"]{border-color:var(--accent)}
+.thumbs .th img{width:72px;height:72px}
+.thumbs .rep{position:absolute;left:3px;bottom:3px;font-size:10.5px;line-height:1.5;background:var(--accent);color:#fff;padding:0 5px;border-radius:4px}
+.thumbs .x{position:absolute;right:-6px;top:-6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;line-height:1;padding:0}
+/* card extras */
+.cmp{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.cmp select{font:inherit;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);flex:1;min-width:0;max-width:100%}
+.acts{display:flex;gap:4px 16px;justify-content:flex-end}
+.link-btn{background:none;border:0;color:var(--muted);font-size:12.5px;padding:6px 0;text-decoration:underline;text-underline-offset:2px}
+.editing{font-size:13px;color:var(--accent);background:var(--accent-soft);border-radius:8px;padding:8px 10px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+/* my clothes + trash lists */
+.list{display:grid;gap:8px}
+.lrow{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:6px}
+.lhead{display:flex;gap:4px 8px;align-items:baseline;flex-wrap:wrap}
+.lhead b{margin-right:auto}
+.lmeta{color:var(--muted);font-size:12.5px}
+.grp{font-size:12px;color:var(--muted);margin:6px 0 0;font-weight:500}
+.mine-form{border:1px solid var(--accent);border-radius:10px;padding:12px;display:grid;gap:10px}
+.mine-form .sz-m input{width:100%;font-family:var(--mono);font-size:14px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);text-align:right}
+@media (max-width:640px){
+  .cmp select,.mine-form .sz-m input{font-size:16px}
+  .link-btn{font-size:14px;padding:8px 0}
+}
 </style>
 
 <div class="wrap">
@@ -197,26 +221,37 @@ dialog.zoom p{color:#fff;text-align:center;margin:8px 0 0;font-size:13px}
   <section class="summary" id="summary" aria-label="요약"></section>
 
   <details class="panel" id="add-panel">
-    <summary>옷 추가 — 링크 붙여넣기 · 캡처 읽기</summary>
+    <summary id="add-summary">옷 추가 — 링크 붙여넣기 · 캡처 읽기</summary>
     <div class="panel-body">
+      <div class="editing" id="editing" hidden></div>
       <div class="field"><label for="in-link" class="label">상품 링크</label>
         <input id="in-link" type="url" inputmode="url" autocomplete="off" placeholder="https://takeitstore.co.kr/product/detail.html?product_no=…"></div>
-      <div class="row"><button type="button" class="btn" id="save-link">링크만 먼저 저장</button>
+      <div class="row" id="link-row"><button type="button" class="btn" id="save-link">링크만 먼저 저장</button>
         <span class="status" id="link-status">어디서 봤는지만 남겨 두고, 사진·가격·사이즈는 나중에 채웁니다.</span></div>
       <div class="drop" id="drop">
         <input id="in-files" type="file" accept="image/*" multiple hidden>
         상품 화면·실측표 캡처를 여기에 끌어놓거나 <button type="button" class="btn" id="pick">사진 고르기</button>
-        <div class="thumbs" id="thumbs" style="margin-top:8px;justify-content:center"></div>
+        <div class="thumbs" id="thumbs" style="margin-top:10px;justify-content:center"></div>
+        <div class="note" id="rep-note" style="margin:6px auto 0" hidden>사진을 누르면 대표 사진(카드에 보일 사진)으로 정해집니다.</div>
       </div>
       <div class="field"><label for="in-text" class="label">(선택) 실측표를 글자로 복사해 붙여넣기</label>
         <textarea id="in-text" placeholder="사이즈 어깨 가슴 소매 총장&#10;M 51 65.5 61 73"></textarea></div>
       <div class="row"><button type="button" class="btn primary" id="extract">캡처 읽기</button>
+        <button type="button" class="btn" id="manual">직접 입력</button>
         <span class="status" id="extract-status"></span></div>
       <div id="draft" hidden></div>
     </div>
   </details>
 
-  <dialog class="zoom" id="zoom"><img id="zoom-img" alt=""><p>화면을 누르면 닫힙니다</p></dialog>
+  <details class="panel" id="mine-panel">
+    <summary>내 옷 사이즈 (비교 기준) <span class="lmeta" id="mine-count"></span></summary>
+    <div class="panel-body">
+      <p class="note">노션 「내 옷 사이즈」에 저장됩니다. 단위 cm, 단면. 상의는 어깨·가슴·총장, 하의는 허리·밑단·총장, 신발은 사이즈만 씁니다.</p>
+      <div class="row"><button type="button" class="btn primary" id="mine-add">+ 내 옷 추가</button><span class="status" id="mine-status"></span></div>
+      <div id="mine-form" hidden></div>
+      <div id="mine-list" class="list"></div>
+    </div>
+  </details>
 
   <section class="controls" aria-label="필터">
     <div id="filters" class="controls"></div>
@@ -231,43 +266,35 @@ dialog.zoom p{color:#fff;text-align:center;margin:8px 0 0;font-size:13px}
 
   <section class="grid" id="grid" aria-label="후보 옷"><div class="empty">노션에서 쇼핑 리스트를 불러오는 중입니다.</div></section>
 
-  <details class="panel">
-    <summary>내가 입는 옷 (비교 기준)</summary>
+  <details class="panel" id="trash-panel">
+    <summary>휴지통 <span class="lmeta" id="trash-count"></span></summary>
     <div class="panel-body">
-      <p class="note">노션 「옷 사이즈」 페이지 기준. 단위 cm, 단면. 이 표는 페이지에 고정돼 있어 노션을 고쳐도 자동으로 바뀌지 않습니다.</p>
-      <div class="mine-grid">
-        <div class="tbl-wrap"><table><thead><tr><th>상의</th><th>구매처</th><th class="n">어깨</th><th class="n">가슴</th><th class="n">총장</th></tr></thead><tbody id="mine-tops"></tbody></table></div>
-        <div class="tbl-wrap"><table><thead><tr><th>하의</th><th>구매처</th><th class="n">허리</th><th class="n">밑단</th><th class="n">총장</th></tr></thead><tbody id="mine-pants"></tbody></table></div>
-        <div class="tbl-wrap"><table><thead><tr><th>신발</th><th class="n">사이즈</th></tr></thead><tbody><tr><td>평소 신는 사이즈</td><td class="n">265</td></tr></tbody></table></div>
-      </div>
+      <p class="note">휴지통으로 보낸 옷은 목록·합계에서 빠지고 여기 보관됩니다. 「완전 삭제」하면 노션 쇼핑 리스트에서 빠져 「🗑 삭제한 옷」 페이지로 옮겨집니다(노션에서 그 페이지를 지우면 완전히 사라집니다).</p>
+      <div id="trash-list" class="list"></div>
     </div>
   </details>
 
-  <p class="note">핏 판정은 가슴단면(바지는 허리단면) 차이로만 냅니다. 내 옷 중 치수 차이 합이 가장 작은 옷을 기준으로 ±2cm 이내면 비슷, 2~5cm면 조금 차이, 5cm를 넘으면 크게 차이. 살래/고민/패스는 노션 「결정」 칸에 저장되고, 예산은 이 브라우저에만 저장됩니다.</p>
+  <dialog class="zoom" id="zoom"><img id="zoom-img" alt=""><p>화면을 누르면 닫힙니다</p></dialog>
+
+  <p class="note">핏 판정은 가슴단면(바지는 허리단면) 차이로만 냅니다. 비교할 내 옷을 고르지 않으면 치수 차이 합이 가장 작은 내 옷과, 고르면 그 옷과 비교합니다. ±2cm 이내면 비슷, 2~5cm면 조금 차이, 5cm를 넘으면 크게 차이. 살래/고민/패스는 노션 「결정」 칸에 저장되고, 예산은 이 브라우저에만 저장됩니다.</p>
 </div>
 
 <script>
 const NOTION = "Notion";
 const VIEW_URL = "https://app.notion.com/p/7bffa6934d1f445389d6dfa3f24917f1?v=d0728fbfc25e4319a0443244965c159e";
 const DATA_SOURCE = "4b8fb3bc-08ca-421e-be5e-927e164db79f";
+const MY_VIEW = "https://app.notion.com/p/54b0c8f7f41b48669d57c273d1c9d817?v=8b70f481f6cd444f86e3626359664852";
+const MY_DS = "51969fd0-e3b5-475a-8a8e-5f7bbf736580";
+const TRASH_PAGE = "3e920f17509d8192a8b3cc1a5d54ff8c";
 
-const MY_TOPS = [
-  {n:"티셔츠(화이트)", s:"29CM 앨빈클로 M", sh:55, ch:58, len:70},
-  {n:"티셔츠(화이트/네이비)", s:"페플 M", sh:59, ch:63, len:70},
-  {n:"이너용 무지티(화이트)", s:"페플 M", sh:45, ch:53, len:71},
-  {n:"티셔츠(그린)", s:"유니클로 M", sh:45.5, ch:51, len:69},
-  {n:"남방(소라색)", s:"지오다노 M", sh:47.6, ch:55, len:75},
-  {n:"체크남방", s:"구매처 미기록", sh:50, ch:50, len:72},
-];
-const MY_PANTS = [
-  {n:"레귤러와이드청바지", s:"빅사이즈클럽 M", w:38, hem:22, len:101, memo:"허리가 큼"},
-  {n:"Mid Rise Wide Jeans", s:"데케트 28", w:38, hem:24.5, len:105, memo:"허리 잘 맞음, 총장 길어 수선"},
-  {n:"슬랙스", s:"MYCOB", w:38, hem:19, len:90},
-];
-const MY_SHOE = "265";
 const TYPES = ["셔츠","니트","맨투맨","바지","신발"];
 const TOPS = ["셔츠","니트","맨투맨"];
 const DECS = ["살래","고민","패스"];
+const CATS = ["상의","하의","신발"];
+const CAT_KEYS = {상의:[["sh","어깨"],["ch","가슴"],["len","총장"]], 하의:[["w","허리"],["hem","밑단"],["len","총장"]], 신발:[]};
+const SML = ["S","M","L"];
+const PENDING = "불러오기 대기";
+const SITES = {"takeitstore.co.kr":"TAKE IT STORE","musinsa.com":"무신사","29cm.co.kr":"29CM","wconcept.co.kr":"W컨셉","zigzag.kr":"지그재그","a-bly.com":"에이블리","kream.co.kr":"KREAM"};
 
 /* ---------- small helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -276,10 +303,19 @@ const won = v => v==null || isNaN(v) ? "—" : Number(v).toLocaleString("ko-KR")
 const fmt = v => (Math.round(v*10)/10).toString();
 const sgn = v => v>0 ? "+"+fmt(v) : v<0 ? "−"+fmt(-v) : "±0";
 const dcls = v => Math.abs(v)<=2 ? "d-zero" : v>0 ? "d-pos" : "d-neg";
+const numOr = v => typeof v==="number" && !isNaN(v) ? v : null;
 const store = {
   get(k, d){ try { const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
+function siteOf(link){
+  try { const h = new URL(link).hostname.replace(/^(www|m)\./,""); return SITES[h] || h; } catch(e){ return ""; }
+}
+function sameLink(a, b){
+  const k = u => { try { const x = new URL(u); return x.hostname.replace(/^(www|m)\./,"") + x.pathname + (x.searchParams.get("product_no") ? "?"+x.searchParams.get("product_no") : ""); } catch(e){ return String(u).trim(); } };
+  return !!a && !!b && k(a)===k(b);
+}
+const catOf = t => t==="바지" ? "하의" : t==="신발" ? "신발" : "상의";
 
 /* ---------- parsing Notion rows ---------- */
 const MEAS = {sh:/어깨\s*[:：]?\s*([\d.]+)/, ch:/가슴\s*[:：]?\s*([\d.]+)/, sl:/소매\s*[:：]?\s*([\d.]+)/,
@@ -300,18 +336,9 @@ function sizesOf(r){
     if (!labelled && key !== "사이즈") add(key, parseMeas(t));
   }
   if (!out.length && (r["어깨"] || r["가슴"] || r["허리"])){
-    add(r["비교사이즈"] || "기준", {sh:r["어깨"], ch:r["가슴"], len:r["총장"], w:r["허리"]});
+    add(r["비교사이즈"] || "기준", {sh:numOr(r["어깨"]), ch:numOr(r["가슴"]), len:numOr(r["총장"]), w:numOr(r["허리"])});
   }
   return out;
-}
-const PENDING = "불러오기 대기";
-const SITES = {"takeitstore.co.kr":"TAKE IT STORE","musinsa.com":"무신사","29cm.co.kr":"29CM","wconcept.co.kr":"W컨셉","zigzag.kr":"지그재그","a-bly.com":"에이블리","kream.co.kr":"KREAM"};
-function siteOf(link){
-  try { const h = new URL(link).hostname.replace(/^(www|m)\./,""); return SITES[h] || h; } catch(e){ return ""; }
-}
-function sameLink(a, b){
-  const k = u => { try { const x = new URL(u); return x.hostname.replace(/^(www|m)\./,"") + x.pathname + (x.searchParams.get("product_no") ? "?"+x.searchParams.get("product_no") : ""); } catch(e){ return String(u).trim(); } };
-  return !!a && !!b && k(a)===k(b);
 }
 function cleanSite(s){ return String(s||"").replace(/\s*\(\[.*$/,"").trim(); }
 function cleanName(s){ return String(s||"").replace(/\\([\[\]~*_])/g,"$1"); }
@@ -330,27 +357,24 @@ function toItem(r){
   if (t!=="신발" && !sizes.length) missing.push("실측 없음");
   if (t==="신발" && !shoe) missing.push("사이즈 없음");
   if (!r["사진ID"]) missing.push("사진 없음");
-  return { id: pageId(r.url), url: r.url, t, n: cleanName(r["옷 이름"]), site: cleanSite(r["구매사이트"]),
+  return { id: pageId(r.url), url: r.url, t, n: cleanName(r["옷 이름"]), site: cleanSite(r["구매사이트"]), rawSite: r["구매사이트"] || "",
     p: r["가격"] ?? null, ...priceInfo(r), link: r["구매링크"] || "", sizes, shoe, dec: r["결정"] || "",
-    photo: r["사진ID"] || "", missing, pending: String(r["옷 이름"]||"").startsWith(PENDING) };
+    photo: r["사진ID"] || "", memo: r["사이즈"] || "", cmp: r["비교옷ID"] || "", trash: r["휴지통"]==="__YES__",
+    missing, pending: String(r["옷 이름"]||"").startsWith(PENDING) };
+}
+function toMine(r){
+  return { id: pageId(r.url), url: r.url, n: r["이름"] || "", cat: CATS.includes(r["구분"]) ? r["구분"] : "상의",
+    s: r["구매처"] || "", size: r["사이즈"] || "", memo: r["비고"] || "",
+    sh: numOr(r["어깨"]), ch: numOr(r["가슴"]), len: numOr(r["총장"]), w: numOr(r["허리"]), hem: numOr(r["밑단"]) };
 }
 function familyKey(n){ return n.replace(/\(.*?\)|\[.*?\]|-.*$/g,"").replace(/\s+/g," ").trim().toLowerCase(); }
 
 /* ---------- fit ---------- */
-function nearestTop(s){
+function nearest(s, pool, keys){
   let best=null, bd=Infinity;
-  for (const m of MY_TOPS){
+  for (const m of pool){
     let d=0, n=0;
-    for (const k of ["sh","ch","len"]) if (s[k]!=null){ d+=Math.abs(m[k]-s[k]); n++; }
-    if (n && d<bd){ bd=d; best=m; }
-  }
-  return best;
-}
-function nearestPants(s){
-  let best=null, bd=Infinity;
-  for (const m of MY_PANTS){
-    let d=0, n=0;
-    for (const k of ["w","hem","len"]) if (s[k]!=null){ d+=Math.abs(m[k]-s[k]); n++; }
+    for (const k of keys) if (s[k]!=null && m[k]!=null){ d+=Math.abs(m[k]-s[k]); n++; }
     if (n && d<bd){ bd=d; best=m; }
   }
   return best;
@@ -362,10 +386,11 @@ function fitPill(d){
   if (a<=5) return `<span class="pill p-warn">조금 ${d>0?"넉넉":"작음"}</span>`;
   return `<span class="pill p-bad">크게 ${d>0?"넉넉":"작음"}</span>`;
 }
+const mineLabel = m => [m.n, [m.s, m.size].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
 const meas = (name, v, ref) => `<div><dt>${name}</dt><dd>${v==null ? "—" : fmt(v)+(ref!=null ? ` <small class="${dcls(v-ref)}">${sgn(v-ref)}</small>` : "")}</dd></div>`;
-const szRow = (s, m, cols, key) => `<div class="sz"><div class="sz-top"><b class="sz-l">${esc(s.l)}</b>${fitPill(s[key]!=null&&m?s[key]-m[key]:null)}<span class="sz-vs">${m?"vs "+esc(m.n)+" · "+esc(m.s):""}</span></div>
+const szRow = (s, m, cols, key, picked) => `<div class="sz"><div class="sz-top"><b class="sz-l">${esc(s.l)}</b>${fitPill(s[key]!=null&&m?.[key]!=null?s[key]-m[key]:null)}<span class="sz-vs">${m?"vs "+esc(mineLabel(m))+(picked?"":" (자동)"):"비교할 내 옷 없음"}</span></div>
   <dl class="sz-m">${cols.map(([k,name])=>meas(name, s[k], m?.[k])).join("")}</dl></div>`;
-function tape(sizes){
+function tape(sizes, pool, pick){
   const lo=48, hi=72, pct=v=>Math.min(100,Math.max(0,((v-lo)/(hi-lo))*100));
   let h="";
   for (let v=lo; v<=hi; v++){
@@ -373,45 +398,64 @@ function tape(sizes){
     h+=`<span class="tick ${major?"major":"minor"}" style="left:${pct(v)}%"></span>`;
     if (major && v>lo && v<hi) h+=`<span class="tlabel" style="left:${pct(v)}%">${v}</span>`;
   }
-  [...new Set(MY_TOPS.map(m=>m.ch))].forEach(c=>{ h+=`<span class="mk own" style="left:${pct(c)}%"><i></i></span>`; });
+  [...new Set(pool.filter(m=>m.ch!=null&&m!==pick).map(m=>m.ch))].forEach(c=>{ h+=`<span class="mk own" style="left:${pct(c)}%"><i></i></span>`; });
+  if (pick?.ch!=null) h+=`<span class="mk own" style="left:${pct(pick.ch)}%;color:var(--ink)"><i style="background:var(--ink);width:3px"></i>내옷</span>`;
   sizes.filter(s=>s.ch!=null).forEach(s=>{ h+=`<span class="mk cand" style="left:${pct(s.ch)}%"><i></i>${esc(s.l)}</span>`; });
   return `<div class="tape" role="img" aria-label="가슴단면 줄자: 회색은 내 옷, 파란색은 이 옷 사이즈">${h}</div>
     <div class="tape-cap"><span>가슴 48cm</span><span>회색 = 내 옷 · 파랑 = 이 옷</span><span>72cm</span></div>`;
 }
+const range = (pool, k) => { const v = pool.map(m=>m[k]).filter(x=>x!=null); if (!v.length) return null;
+  const lo = Math.min(...v), hi = Math.max(...v); return lo===hi ? fmt(lo) : `${fmt(lo)}~${fmt(hi)}`; };
+function cmpSelect(it, pool, pick){
+  const dis = busy.has(it.id) || !mcp ? "disabled" : "";
+  return `<label class="cmp"><span class="label">비교할 내 옷</span><select data-cmp="${it.id}" ${dis}>
+    <option value="">자동 — 가장 비슷한 옷</option>
+    ${pool.map(m=>`<option value="${m.id}" ${pick===m?"selected":""}>${esc(mineLabel(m))}</option>`).join("")}</select></label>`;
+}
 function fitBlock(it){
-  if (it.t==="신발"){
-    if (!it.shoe) return `<div class="verdict"><span class="pill p-none">사이즈 없음</span>노션에 고른 사이즈가 없습니다.</div>`;
-    const same = it.shoe===MY_SHOE;
-    return `<div class="verdict">${same?'<span class="pill p-good">내 사이즈</span>':'<span class="pill p-warn">사이즈 다름</span>'}선택 <b class="num">${esc(it.shoe)}</b> · 평소 <b class="num">${MY_SHOE}</b>. 후기의 "정사이즈/반 치수 업"을 한 번 확인하세요.</div>`;
+  const cat = catOf(it.t);
+  const pool = mine.filter(m=>m.cat===cat);
+  const pick = pool.find(m=>m.id===it.cmp) || null;
+  const sel = pool.length ? cmpSelect(it, pool, pick) : `<div class="note">「내 옷 사이즈」에 ${cat}를 추가하면 비교할 수 있습니다.</div>`;
+  if (cat==="신발"){
+    const ref = pick || pool.find(m=>m.size);
+    if (!it.shoe) return `${sel}<div class="verdict"><span class="pill p-none">사이즈 없음</span>노션에 고른 사이즈가 없습니다.</div>`;
+    if (!ref?.size) return `${sel}<div class="verdict">선택 <b class="num">${esc(it.shoe)}</b></div>`;
+    const same = it.shoe===ref.size;
+    return `${sel}<div class="verdict">${same?'<span class="pill p-good">내 사이즈</span>':'<span class="pill p-warn">사이즈 다름</span>'}선택 <b class="num">${esc(it.shoe)}</b> · ${esc(ref.n)} <b class="num">${esc(ref.size)}</b>. 후기의 "정사이즈/반 치수 업"을 한 번 확인하세요.</div>`;
   }
-  if (it.t==="바지"){
-    if (!it.sizes.length) return `<div class="verdict"><span class="pill p-none">실측 없음</span>상세페이지에서 <b class="num">허리단면 38</b> 전후 · <b class="num">총장 101~105</b> · <b class="num">밑단 22~24.5</b>만 보면 됩니다.</div>`;
-    return `<div class="szs">${it.sizes.map(s=>szRow(s, nearestPants(s), [["w","허리"],["hem","밑단"],["len","총장"]], "w")).join("")}</div>`;
+  const cols = CAT_KEYS[cat], key = cat==="하의" ? "w" : "ch";
+  if (!it.sizes.length){
+    const hint = cols.map(([k,name])=>{ const r = range(pool,k); return r ? `${name} <b class="num">${r}</b>` : ""; }).filter(Boolean).join(" · ");
+    return `${sel}<div class="verdict"><span class="pill p-none">실측 없음</span>실측표 캡처를 올리면 비교할 수 있습니다.${hint?` 내 ${cat}: ${hint}`:""}</div>`;
   }
-  if (!it.sizes.length) return `<div class="verdict"><span class="pill p-none">실측 없음</span>실측표 캡처를 올리면 비교할 수 있습니다. 가지고 있는 상의 가슴은 <b class="num">50~63cm</b>입니다.</div>`;
-  return `<div class="szs">${it.sizes.map(s=>szRow(s, nearestTop(s), [["sh","어깨"],["ch","가슴"],["len","총장"]], "ch")).join("")}</div>${tape(it.sizes)}`;
+  const measured = pool.filter(m=>cols.some(([k])=>m[k]!=null));
+  const rows = it.sizes.map(s=>szRow(s, pick || nearest(s, measured, cols.map(c=>c[0])), cols, key, !!pick)).join("");
+  return `${sel}<div class="szs">${rows}</div>${cat==="상의" ? tape(it.sizes, measured, pick) : ""}`;
 }
 
 /* ---------- state + render ---------- */
-let items = [];
+let items = [], mine = [];
 let typeFilter = store.get("kc-filter","전체");
 let budget = store.get("kc-budget", null);
 let mcp = null, sample = null, assets = null;
 let busy = new Set();
+const live = () => items.filter(i=>!i.trash);
 
 function renderSummary(){
-  const buy = items.filter(i=>i.dec==="살래");
+  const list = live();
+  const buy = list.filter(i=>i.dec==="살래");
   const total = buy.reduce((a,i)=>a+(i.p||0),0);
   const left = budget ? budget-total : null;
-  const hold = items.filter(i=>i.dec==="고민").length;
-  const todo = items.filter(i=>!i.dec).length;
+  const hold = list.filter(i=>i.dec==="고민").length;
+  const todo = list.filter(i=>!i.dec).length;
   $("summary").innerHTML = `
     <div class="stat cart"><span class="label">살래 합계</span><b>${won(total)}</b><span class="sub">${buy.length}개</span></div>
     <div class="stat ${left!=null&&left<0?"over":""}"><label class="label" for="budget">이번 예산</label>
       <input id="budget" type="number" inputmode="numeric" min="0" step="10000" placeholder="예: 150000" value="${budget??""}">
       <span class="sub">${left==null?"입력하면 남은 금액을 계산합니다":left<0?`${won(-left)} 초과`:`${won(left)} 남음`}</span></div>
     <div class="stat"><span class="label">아직 안 정한 옷</span><b>${todo}개</b><span class="sub">고민 ${hold}개</span></div>
-    <div class="stat"><span class="label">실측 비교 가능</span><b>${items.filter(i=>i.sizes.length||i.shoe).length}/${items.length}</b><span class="sub">나머지는 캡처가 필요</span></div>`;
+    <div class="stat"><span class="label">실측 비교 가능</span><b>${list.filter(i=>i.sizes.length||i.shoe).length}/${list.length}</b><span class="sub">나머지는 캡처가 필요</span></div>`;
   $("budget").addEventListener("change", e=>{ const v=parseInt(e.target.value); budget = isNaN(v)||v<=0 ? null : v; store.set("kc-budget", budget); renderSummary(); });
 }
 function renderFilters(){
@@ -423,7 +467,7 @@ function card(it, fam){
                          : `<div class="photo">사진 없음</div>`;
   const sib = fam.filter(x=>x.id!==it.id);
   const twin = sib.length ? `<div class="twin">이름이 비슷한 후보 ${sib.length}개: ${sib.map(x=>`${esc(x.site)} ${won(x.p)}`).join(", ")}. 같은 옷이면 하나만 고르면 됩니다.</div>` : "";
-  const miss = it.pending ? `<div class="pending">링크만 저장된 옷입니다. 사진·가격·사이즈를 아직 불러오지 않았습니다.</div>`
+  const miss = it.pending ? `<div class="pending">링크만 저장된 옷입니다. 「수정」을 눌러 캡처를 올리면 사진·가격·사이즈를 채웁니다.</div>`
     : it.missing.length ? `<div class="missing">노션에 비어 있음: ${it.missing.map(esc).join(" · ")}</div>` : "";
   const link = it.link ? `<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.site||"쇼핑몰")}에서 보기 ↗</a>` : `<span class="note">링크 없음</span>`;
   const dis = busy.has(it.id) || !mcp ? "disabled" : "";
@@ -433,25 +477,40 @@ function card(it, fam){
     ${it.pending ? "" : fitBlock(it)}${twin}${miss}
     <div class="foot">${link}<div class="dec" role="group" aria-label="결정">
       ${DECS.map(v=>`<button type="button" data-id="${it.id}" data-v="${v}" aria-pressed="${it.dec===v}" ${dis}>${v}</button>`).join("")}</div></div>
+    <div class="acts"><button type="button" class="link-btn" data-edit="${it.id}" ${dis}>수정</button><button type="button" class="link-btn" data-trash="${it.id}" ${dis}>휴지통으로</button></div>
   </article>`;
 }
 function renderGrid(){
   const sort = $("sort").value, order = {"살래":0,"고민":1,"":2,"패스":3};
-  let list = items.filter(i=>typeFilter==="전체"||i.t===typeFilter);
+  let list = live().filter(i=>typeFilter==="전체"||i.t===typeFilter);
   list = [...list].sort((a,b)=>{
     if (sort==="price") return (a.p??1e9)-(b.p??1e9);
     if (sort==="dec") return (order[a.dec]-order[b.dec]) || (a.p??1e9)-(b.p??1e9);
     const ti = t => { const i = TYPES.indexOf(t); return i<0 ? 99 : i; };
     return (ti(a.t)-ti(b.t)) || (a.p??1e9)-(b.p??1e9);
   });
-  const fams = {}; items.forEach(i=>{ const k=familyKey(i.n); (fams[k]=fams[k]||[]).push(i); });
+  const fams = {}; live().forEach(i=>{ const k=familyKey(i.n); (fams[k]=fams[k]||[]).push(i); });
   $("grid").innerHTML = list.length ? list.map(i=>card(i, fams[familyKey(i.n)]||[])).join("") : `<div class="empty">이 종류의 후보가 없습니다.</div>`;
 }
-function renderMine(){
-  $("mine-tops").innerHTML = MY_TOPS.map(m=>`<tr><td>${esc(m.n)}</td><td>${esc(m.s)}</td><td class="n">${fmt(m.sh)}</td><td class="n">${fmt(m.ch)}</td><td class="n">${fmt(m.len)}</td></tr>`).join("");
-  $("mine-pants").innerHTML = MY_PANTS.map(m=>`<tr><td>${esc(m.n)}${m.memo?`<br><small style="color:var(--muted)">${esc(m.memo)}</small>`:""}</td><td>${esc(m.s)}</td><td class="n">${fmt(m.w)}</td><td class="n">${fmt(m.hem)}</td><td class="n">${fmt(m.len)}</td></tr>`).join("");
+function renderTrash(){
+  const t = items.filter(i=>i.trash);
+  $("trash-count").textContent = t.length ? `${t.length}개` : "";
+  const dis = !mcp ? "disabled" : "";
+  $("trash-list").innerHTML = t.length ? t.map(i=>`<div class="lrow"><div class="lhead"><b>${esc(i.n)}</b><span class="lmeta">${esc(i.site)} · ${won(i.p)}</span></div>
+      <div class="row"><button type="button" class="btn" data-restore="${i.id}" ${busy.has(i.id)?"disabled":dis}>되돌리기</button><button type="button" class="btn" data-purge="${i.id}" ${busy.has(i.id)?"disabled":dis}>완전 삭제</button></div></div>`).join("")
+    + (t.length>1 ? `<div class="row"><button type="button" class="btn" id="purge-all" ${dis}>휴지통 비우기 (${t.length}개)</button></div>` : "")
+    : `<div class="note">비어 있습니다.</div>`;
 }
-function renderAll(){ renderSummary(); renderFilters(); renderGrid(); }
+function renderMine(){
+  $("mine-count").textContent = mine.length ? `${mine.length}벌` : "";
+  const sorted = CATS.map(c=>[c, mine.filter(m=>m.cat===c).sort((a,b)=>a.n.localeCompare(b.n,"ko"))]);
+  $("mine-list").innerHTML = mine.length ? sorted.filter(([,l])=>l.length).map(([c,l])=>`<p class="grp">${c} ${l.length}</p>` + l.map(m=>{
+    const cols = CAT_KEYS[m.cat];
+    const body = cols.length ? `<dl class="sz-m">${cols.map(([k,name])=>meas(name, m[k])).join("")}</dl>` : `<div class="lmeta">사이즈 <b class="num">${esc(m.size||"—")}</b></div>`;
+    return `<div class="lrow"><div class="lhead"><b>${esc(m.n)}</b><span class="lmeta">${esc([m.s, m.size && m.cat!=="신발" ? m.size : ""].filter(Boolean).join(" · "))}</span><button type="button" class="link-btn" data-mine-edit="${m.id}" ${mcp?"":"disabled"}>수정</button></div>${body}${m.memo?`<div class="lmeta">${esc(m.memo)}</div>`:""}</div>`;
+  }).join("")).join("") : `<div class="note">아직 불러오지 못했습니다.</div>`;
+}
+function renderAll(){ renderSummary(); renderFilters(); renderGrid(); renderTrash(); renderMine(); }
 function setStatus(t, err){ $("status").textContent = t; $("status").classList.toggle("err", !!err); }
 function showBanner(t){ $("banner").textContent = t; $("banner").hidden = !t; }
 
@@ -466,44 +525,78 @@ function mcpCopy(e){
     default: return "노션과 통신하지 못했습니다" + (e?.code ? ` (${e.code})` : "") + ".";
   }
 }
-async function load(refresh){
+async function queryView(view_url){
+  let rows = [], cursor = null;
+  for (let i=0; i<10; i++){
+    const data = {mode:"view", view_url}; if (cursor) data.start_cursor = cursor;
+    const res = await mcp.callTool(NOTION, "notion-query-data-sources", {data}, {cache:false});
+    const p = res.payload;
+    if (!Array.isArray(p?.results)) throw {code:"shape", message:"예상과 다른 응답"};
+    rows = rows.concat(p.results);
+    if (!p.has_more || !p.next_cursor) break;
+    cursor = p.next_cursor;
+  }
+  return rows;
+}
+async function load(){
   if (!mcp) return;
   setStatus("노션에서 불러오는 중…");
-  try {
-    const res = await mcp.callTool(NOTION, "notion-query-data-sources", {data:{mode:"view", view_url:VIEW_URL}}, {cache:false});
-    const p = res.payload;
-    const rows = Array.isArray(p?.results) ? p.results : null;
-    if (!rows) throw {code:"shape", message:"예상과 다른 응답"};
-    items = rows.map(toItem).filter(i=>i.id);
-    showBanner("");
-    setStatus(`노션 ${items.length}개 · ${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})} 기준`);
-    renderAll();
-  } catch(e){
-    setStatus("불러오기 실패", true);
-    showBanner(e.code==="shape" ? "노션 응답 모양이 예상과 달라 읽지 못했습니다. Claude에게 알려주세요." : mcpCopy(e));
-  }
+  const [a, b] = await Promise.allSettled([queryView(VIEW_URL), queryView(MY_VIEW)]);
+  if (b.status==="fulfilled") mine = b.value.map(toMine).filter(m=>m.id);
+  if (a.status==="fulfilled"){
+    items = a.value.map(toItem).filter(i=>i.id);
+    setStatus(`노션 ${live().length}개 · ${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})} 기준`);
+  } else setStatus("불러오기 실패", true);
+  const err = a.status==="rejected" ? a.reason : b.status==="rejected" ? b.reason : null;
+  showBanner(!err ? "" : (b.status==="rejected" && a.status==="fulfilled" ? "내 옷 사이즈를 불러오지 못했습니다: " : "") + (err?.code==="shape" ? "노션 응답 모양이 예상과 달라 읽지 못했습니다. Claude에게 알려주세요." : mcpCopy(err)));
+  renderAll();
 }
-async function setDecision(id, v){
+async function updateItem(id, props, okMsg, rollback){
+  busy.add(id); renderAll();
+  try {
+    await mcp.callTool(NOTION, "notion-update-page", {page_id:id, command:"update_properties", properties:props});
+    setStatus(okMsg);
+  } catch(e){ rollback?.(); setStatus("저장 실패 — " + mcpCopy(e), true); }
+  finally { busy.delete(id); renderAll(); }
+}
+function setDecision(id, v){
   const it = items.find(i=>i.id===id); if (!it || busy.has(id)) return;
   const next = it.dec===v ? "" : v, prev = it.dec;
-  it.dec = next; busy.add(id); renderAll();
+  it.dec = next;
+  updateItem(id, {"결정": next || null}, `「${it.n.slice(0,18)}」 ${next||"결정 취소"} 저장됨`, ()=>{ it.dec = prev; });
+}
+function setCompare(id, v){
+  const it = items.find(i=>i.id===id); if (!it || busy.has(id)) return;
+  const prev = it.cmp; it.cmp = v;
+  const m = mine.find(x=>x.id===v);
+  updateItem(id, {"비교옷ID": v || null}, `「${it.n.slice(0,18)}」 비교 기준: ${m ? m.n : "자동"}`, ()=>{ it.cmp = prev; });
+}
+function setTrash(id, on){
+  const it = items.find(i=>i.id===id); if (!it || busy.has(id)) return;
+  it.trash = on;
+  updateItem(id, {"휴지통": on ? "__YES__" : "__NO__"}, `「${it.n.slice(0,18)}」 ${on?"휴지통으로 보냄":"되돌림"}`, ()=>{ it.trash = !on; });
+}
+async function purge(ids){
+  const list = items.filter(i=>ids.includes(i.id)); if (!list.length) return;
+  if (!confirm(list.length===1 ? `「${list[0].n}」을(를) 완전 삭제할까요?\n노션 쇼핑 리스트에서 빠집니다.` : `휴지통의 ${list.length}개를 완전 삭제할까요?\n노션 쇼핑 리스트에서 빠집니다.`)) return;
+  ids.forEach(id=>busy.add(id)); renderTrash();
   try {
-    await mcp.callTool(NOTION, "notion-update-page", {page_id:id, command:"update_properties", properties:{"결정": next || null}});
-    setStatus(`「${it.n.slice(0,18)}」 ${next||"결정 취소"} 저장됨`);
-  } catch(e){
-    it.dec = prev;
-    setStatus("저장 실패 — " + mcpCopy(e), true);
-  } finally { busy.delete(id); renderAll(); }
+    await mcp.callTool(NOTION, "notion-move-pages", {page_or_database_ids: ids, new_parent:{type:"page_id", page_id:TRASH_PAGE}});
+    items = items.filter(i=>!ids.includes(i.id));
+    setStatus(`${list.length}개 완전 삭제함`);
+  } catch(e){ setStatus("삭제 실패 — " + mcpCopy(e), true); }
+  finally { ids.forEach(id=>busy.delete(id)); renderAll(); }
 }
 
-/* ---------- add: capture → Claude → Notion ---------- */
-let files = [], draft = null;
+/* ---------- add / edit: capture → Claude → Notion ---------- */
+let files = [], rep = 0, draft = null;
 function renderThumbs(){
-  $("thumbs").innerHTML = files.map(f=>`<img alt="" src="${URL.createObjectURL(f)}">`).join("");
+  $("thumbs").innerHTML = files.map((f,i)=>`<span style="position:relative;display:inline-block"><button type="button" class="th" data-rep="${i}" aria-pressed="${i===rep}" aria-label="${i+1}번째 사진을 대표 사진으로"><img alt="" src="${URL.createObjectURL(f)}">${i===rep?'<span class="rep">대표</span>':""}</button><button type="button" class="x" data-unfile="${i}" aria-label="${i+1}번째 사진 빼기">×</button></span>`).join("");
+  $("rep-note").hidden = files.length < 2;
 }
 function takeFiles(list){
   const imgs = [...list].filter(f=>/^image\//.test(f.type));
-  files = [...files, ...imgs].slice(0, 5); renderThumbs();
+  files = [...files, ...imgs].slice(0, 5); if (rep >= files.length) rep = 0; renderThumbs();
 }
 const PROMPT = `쇼핑몰 상품 화면 캡처(와 붙여넣은 글자)에서 옷 정보를 뽑는다.
 규칙:
@@ -514,15 +607,18 @@ const PROMPT = `쇼핑몰 상품 화면 캡처(와 붙여넣은 글자)에서 �
 - 신발이면 sizes 대신 shoeSize(예 "265")를 채운다.
 JSON 하나만 답한다:
 {"name":string|null,"brand":string|null,"site":string|null,"color":string|null,"type":string|null,"price":number|null,"originalPrice":number|null,"discountRate":number|null,"shoeSize":string|null,"sizes":[{"label":string,"shoulder":number|null,"chest":number|null,"sleeve":number|null,"length":number|null,"waist":number|null,"hem":number|null}],"note":string|null}`;
+const blankSize = () => ({l:"",sh:null,ch:null,sl:null,len:null,w:null,hem:null});
+function newDraft(link){ return {mode:"add", name:"", type:"", site:siteOf(link), link:link||"", price:null, op:null, shoe:"", sizes:[], memo:"", note:""}; }
 async function extract(){
-  const text = $("in-text").value.trim(), link = $("in-link").value.trim();
+  const text = $("in-text").value.trim(), link = $("in-link").value.trim() || draft?.link || "";
   if (!files.length && !text){ $("extract-status").textContent = "캡처나 실측표 글자를 하나 이상 넣어주세요."; return; }
   if (!sample){ $("extract-status").textContent = "이 화면에서는 Claude 읽기를 쓸 수 없습니다."; return; }
+  if (draft) readDraft();
   $("extract").disabled = true; $("extract-status").textContent = "Claude가 읽는 중… (보통 10~40초)";
   try {
     const input = PROMPT + (link ? `\n\n상품 링크: ${link}` : "") + (text ? `\n\n붙여넣은 글자:\n${text.slice(0,4000)}` : "");
     const out = await sample.json(input, files.length ? {images: files} : {});
-    draft = normalizeDraft(out, link);
+    mergeExtract(out, link);
     $("extract-status").textContent = "읽었습니다. 틀린 곳을 고친 뒤 저장하세요.";
     renderDraft();
   } catch(e){
@@ -532,21 +628,44 @@ async function extract(){
     $("extract-status").textContent = m[e.code] || `읽기 실패 (${e.code||"알 수 없음"}). 다시 눌러주세요.`;
   } finally { $("extract").disabled = false; }
 }
-function normalizeDraft(o, link){
+function mergeExtract(o, link){
   const n = v => (v==null || v==="" || isNaN(Number(v))) ? null : Number(v);
-  return {
-    name: [o?.brand, o?.name, o?.color ? `(${o.color})` : ""].filter(Boolean).join(" ").trim(),
-    type: TYPES.includes(o?.type) ? o.type : "",
-    site: o?.site || siteOf(link), link: link || "",
-    price: n(o?.price), op: n(o?.originalPrice), off: n(o?.discountRate),
-    shoe: o?.shoeSize ? String(o.shoeSize) : "",
-    sizes: (Array.isArray(o?.sizes) ? o.sizes : []).map(s=>({l:String(s.label||"").trim()||"?", sh:n(s.shoulder), ch:n(s.chest), sl:n(s.sleeve), len:n(s.length), w:n(s.waist), hem:n(s.hem)})),
-    note: o?.note || ""
-  };
+  const d = draft || newDraft(link);
+  const name = [o?.brand, o?.name, o?.color ? `(${o.color})` : ""].filter(Boolean).join(" ").trim();
+  if (name && (!d.name || d.name.startsWith(PENDING) || d.mode==="add")) d.name = name;
+  if (TYPES.includes(o?.type)) d.type = o.type;
+  if (o?.site && (!d.site || d.mode==="add")) d.site = o.site;
+  if (!d.site) d.site = siteOf(link);
+  if (link && !d.link) d.link = link;
+  if (n(o?.price)!=null) d.price = n(o.price);
+  if (n(o?.originalPrice)!=null) d.op = n(o.originalPrice);
+  if (o?.shoeSize) d.shoe = String(o.shoeSize);
+  const sz = (Array.isArray(o?.sizes) ? o.sizes : []).map(s=>({l:String(s.label||"").trim()||"?", sh:n(s.shoulder), ch:n(s.chest), sl:n(s.sleeve), len:n(s.length), w:n(s.waist), hem:n(s.hem)}));
+  if (sz.length) d.sizes = sz;
+  d.note = o?.note || "";
+  draft = d;
 }
+function openEdit(id){
+  const it = items.find(i=>i.id===id); if (!it) return;
+  files = []; rep = 0; renderThumbs();
+  const sizes = it.sizes.map(s=>({...blankSize(), ...Object.fromEntries(Object.entries(s).map(([k,v])=>[k, k==="l" ? v : numOr(v)]))}));
+  draft = {mode:"edit", id, name:it.n, type:it.t, site:it.site, link:it.link, price:it.p, op:it.op??null, shoe:it.shoe, sizes, memo:it.memo, note:""};
+  draft.orig = JSON.parse(JSON.stringify(draft));
+  $("in-link").value = ""; $("in-text").value = ""; $("extract-status").textContent = "";
+  renderDraft();
+  $("add-panel").open = true;
+  $("add-panel").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeDraft(){ draft = null; files = []; rep = 0; renderThumbs(); renderDraft(); }
 const SZ_COLS = [["sh","어깨"],["ch","가슴"],["sl","소매"],["len","총장"],["w","허리"],["hem","밑단"]];
 function renderDraft(){
-  const d = draft; const box = $("draft"); box.hidden = !d; if (!d) return;
+  const d = draft; const box = $("draft"); box.hidden = !d;
+  const edit = d?.mode==="edit";
+  $("editing").hidden = !edit;
+  $("link-row").hidden = edit;
+  $("add-summary").textContent = edit ? "옷 수정" : "옷 추가 — 링크 붙여넣기 · 캡처 읽기";
+  if (edit) $("editing").innerHTML = `<span>「${esc(d.orig.name)}」 수정 중 — 캡처를 올려 읽거나 아래를 직접 고치세요.</span><button type="button" class="btn" id="d-cancel2">수정 그만두기</button>`;
+  if (!d) return;
   box.innerHTML = `
     <div class="form-grid">
       <div class="field"><label class="label" for="d-name">옷 이름</label><input id="d-name" value="${esc(d.name)}"></div>
@@ -554,60 +673,90 @@ function renderDraft(){
       <div class="field"><label class="label" for="d-site">구매사이트</label><input id="d-site" value="${esc(d.site)}"></div>
       <div class="field"><label class="label" for="d-price">가격(원)</label><input id="d-price" type="number" inputmode="numeric" value="${d.price??""}"></div>
       <div class="field"><label class="label" for="d-op">정가(원)</label><input id="d-op" type="number" inputmode="numeric" value="${d.op??""}"></div>
-      <div class="field"><label class="label" for="d-shoe">신발 사이즈</label><input id="d-shoe" value="${esc(d.shoe)}"></div>
+      <div class="field"><label class="label" for="d-shoe">신발 사이즈</label><input id="d-shoe" inputmode="numeric" value="${esc(d.shoe)}"></div>
     </div>
-    <div class="field"><label class="label" for="d-link">구매링크</label><input id="d-link" type="url" value="${esc(d.link)}"></div>
+    <div class="field"><label class="label" for="d-link">구매링크</label><input id="d-link" type="url" inputmode="url" value="${esc(d.link)}"></div>
     <div class="szs">${d.sizes.map((s,i)=>`<div class="sz-edit"><div class="sz-top"><span class="label">사이즈</span><input data-i="${i}" data-k="l" value="${esc(s.l)}" aria-label="사이즈 이름"><span class="spacer"></span><button type="button" class="btn" data-del="${i}">빼기</button></div>
-      <dl class="sz-m">${SZ_COLS.map(c=>`<div><dt>${c[1]}</dt><dd><input type="number" inputmode="decimal" step="0.5" data-i="${i}" data-k="${c[0]}" value="${s[c[0]]??""}" aria-label="${s.l} ${c[1]}"></dd></div>`).join("")}</dl></div>`).join("")}</div>
+      <dl class="sz-m">${SZ_COLS.map(c=>`<div><dt>${c[1]}</dt><dd><input type="number" inputmode="decimal" step="0.5" data-i="${i}" data-k="${c[0]}" value="${s[c[0]]??""}" aria-label="${esc(s.l)} ${c[1]}"></dd></div>`).join("")}</dl></div>`).join("")}</div>
     <div class="row"><button type="button" class="btn" id="d-addsize">사이즈 줄 추가</button>${d.note?`<span class="note">메모: ${esc(d.note)}</span>`:""}</div>
-    <div class="row"><button type="button" class="btn primary" id="d-save">노션에 저장</button><button type="button" class="btn" id="d-cancel">취소</button><span class="status" id="save-status"></span></div>`;
+    <div class="field"><label class="label" for="d-memo">사이즈 메모 (노션 「사이즈」 칸${edit?"":", 비워 두면 자동으로 채움"})</label><textarea id="d-memo" style="min-height:44px">${esc(d.memo)}</textarea></div>
+    <div class="row"><button type="button" class="btn primary" id="d-save">${edit?"노션에 수정 저장":"노션에 저장"}</button><button type="button" class="btn" id="d-cancel">취소</button><span class="status" id="save-status"></span></div>`;
 }
 function readDraft(){
+  if (!draft || !$("d-name")) return;
   const n = v => { const x = parseFloat(v); return isNaN(x) ? null : x; };
   draft.name = $("d-name").value.trim(); draft.type = $("d-type").value; draft.site = $("d-site").value.trim();
   draft.price = n($("d-price").value); draft.op = n($("d-op").value); draft.shoe = $("d-shoe").value.trim(); draft.link = $("d-link").value.trim();
+  draft.memo = $("d-memo").value;
   $("draft").querySelectorAll("input[data-i]").forEach(el=>{ const s = draft.sizes[+el.dataset.i]; if (!s) return;
     s[el.dataset.k] = el.dataset.k==="l" ? el.value.trim() : n(el.value); });
 }
 const measText = s => SZ_COLS.filter(c=>s[c[0]]!=null).map(c=>`${c[1]} ${fmt(s[c[0]])}`).join(" / ");
+const PRICE_NOTE = /\s*\(정가\s*[\d,]+원\s*→\s*\d+%\s*할인가\)/;
+function sizeText(d, sized, sizesChanged){
+  const add = d.mode==="add";
+  let t = d.memo.trim();
+  if (d.type==="신발"){ if (d.shoe && !t.includes(d.shoe)) t = [d.shoe, t].filter(Boolean).join(" "); }
+  else if (add && !t) t = sized.map(s=>`${s.l}: ${measText(s)}`).join(" | ");
+  else if (sizesChanged){
+    for (const s of sized.filter(s=>!SML.includes(s.l))){
+      const re = new RegExp(`(^|[^A-Za-z])${s.l.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\s*[:：][^|)]*`);
+      const seg = `${s.l}: ${measText(s)}`;
+      t = re.test(t) ? t.replace(re, `$1${seg} `).trim() : [t, seg].filter(Boolean).join(" | ");
+    }
+  }
+  if (add ? !!d.op : d.op!==d.orig.op || d.price!==d.orig.price){
+    const off = d.op && d.price ? Math.round((1-d.price/d.op)*100) : null;
+    t = t.replace(PRICE_NOTE, "");
+    if (d.op && off!=null) t = `${t} (정가 ${d.op.toLocaleString("ko-KR")}원 → ${off}% 할인가)`.trim();
+  }
+  return t;
+}
 async function saveDraft(){
-  readDraft(); const d = draft;
+  readDraft(); const d = draft, add = d.mode==="add", o = d.orig || {};
   if (!d.name){ $("save-status").textContent = "옷 이름을 넣어주세요."; return; }
-  $("d-save").disabled = true; $("save-status").textContent = "저장 중…";
-  const props = {"옷 이름": d.name};
-  if (d.type) props["종류"] = d.type;
-  if (d.site) props["구매사이트"] = d.site;
-  if (d.link) props["구매링크"] = d.link;
-  if (d.price!=null) props["가격"] = d.price;
   const sized = d.sizes.filter(s=>s.l && measText(s));
-  const off = d.op && d.price ? Math.round((1-d.price/d.op)*100) : null;
-  const sizeLine = d.type==="신발" ? d.shoe : sized.map(s=>`${s.l}: ${measText(s)}`).join(" | ");
-  props["사이즈"] = [sizeLine, d.op ? `(정가 ${d.op.toLocaleString("ko-KR")}원 → ${off}% 할인가)` : ""].filter(Boolean).join(" ");
-  for (const s of sized) if (["S","M","L"].includes(s.l)) props[s.l] = measText(s);
-  const base = sized[0];
-  if (d.type==="신발" && d.shoe) props["비교사이즈"] = d.shoe;
-  else if (base){ props["비교사이즈"] = base.l; if (base.sh!=null) props["어깨"]=base.sh; if (base.ch!=null) props["가슴"]=base.ch; if (base.len!=null) props["총장"]=base.len; if (base.w!=null) props["허리"]=base.w; }
+  const sizesChanged = add || JSON.stringify(d.sizes)!==JSON.stringify(o.sizes);
+  const props = {};
+  const put = (k, v, was) => { if (add ? (v!=null && v!=="") : v!==was) props[k] = (v==="" ? null : v); };
+  put("옷 이름", d.name, o.name);
+  put("종류", d.type || (add ? null : ""), o.type);
+  put("구매사이트", d.site, o.site);
+  put("구매링크", d.link, o.link);
+  put("가격", d.price, o.price);
+  const st = sizeText(d, sized, sizesChanged);
+  if (add ? !!st : st!==(o.memo||"")) props["사이즈"] = st || null;
+  if (sizesChanged){
+    for (const s of sized) if (SML.includes(s.l)) props[s.l] = measText(s);
+    const base = sized[0];
+    if (d.type!=="신발" && base){
+      props["비교사이즈"] = base.l;
+      for (const [k, col] of [["sh","어깨"],["ch","가슴"],["len","총장"],["w","허리"]]) if (base[k]!=null || !add) props[col] = base[k];
+    }
+  }
+  if (d.type==="신발" && d.shoe && (add || d.shoe!==o.shoe)) props["비교사이즈"] = d.shoe;
+  $("d-save").disabled = true; $("save-status").textContent = "저장 중…";
   try {
     if (assets && files.length){
-      try { const up = await assets.upload(files[0]); props["사진ID"] = up.id; }
+      try { const up = await assets.upload(files[rep] || files[0]); props["사진ID"] = up.id; }
       catch(e){ $("save-status").textContent = "사진은 저장하지 못했습니다. 정보만 저장합니다…"; }
     }
-    await mcp.callTool(NOTION, "notion-create-pages", {parent:{type:"data_source_id", data_source_id:DATA_SOURCE}, pages:[{properties:props}]});
-    files = []; draft = null; renderThumbs(); renderDraft();
+    if (add) await mcp.callTool(NOTION, "notion-create-pages", {parent:{type:"data_source_id", data_source_id:DATA_SOURCE}, pages:[{properties:props}]});
+    else if (Object.keys(props).length) await mcp.callTool(NOTION, "notion-update-page", {page_id:d.id, command:"update_properties", properties:props});
+    closeDraft();
     $("in-link").value = ""; $("in-text").value = "";
-    $("extract-status").textContent = "노션에 저장했습니다.";
-    await load(true);
+    $("extract-status").textContent = add ? "노션에 저장했습니다." : Object.keys(props).length ? "수정 내용을 저장했습니다." : "바뀐 내용이 없습니다.";
+    await load();
   } catch(e){
     $("save-status").textContent = "저장 실패 — " + mcpCopy(e) + " 노션을 확인한 뒤 다시 누르세요.";
     const btn = $("d-save"); if (btn) btn.disabled = false;
   }
 }
-
 async function saveLink(){
   const link = $("in-link").value.trim(), st = $("link-status");
   let u; try { u = new URL(link); } catch(e){ st.textContent = "링크를 먼저 붙여넣어 주세요."; return; }
   const dup = items.find(i=>sameLink(i.link, link));
-  if (dup){ st.textContent = `이미 노션에 있습니다: 「${dup.n}」`; return; }
+  if (dup){ st.textContent = `이미 노션에 있습니다: 「${dup.n}」${dup.trash?" (휴지통)":""}`; return; }
   if (!mcp){ st.textContent = "노션 연결이 없어 저장할 수 없습니다."; return; }
   const no = u.searchParams.get("product_no") || (u.pathname.match(/(\d{4,})/)||[])[1] || "";
   const props = {"옷 이름": `${PENDING} · ${siteOf(link)}${no?" "+no:""}`, "구매사이트": siteOf(link), "구매링크": link};
@@ -615,28 +764,91 @@ async function saveLink(){
   try {
     await mcp.callTool(NOTION, "notion-create-pages", {parent:{type:"data_source_id", data_source_id:DATA_SOURCE}, pages:[{properties:props}]});
     $("in-link").value = ""; st.textContent = "링크를 저장했습니다. 목록 맨 아래 「미분류」에 있습니다.";
-    await load(true);
+    await load();
   } catch(e){ st.textContent = "저장 실패 — " + mcpCopy(e); }
   finally { $("save-link").disabled = false; }
 }
 
+/* ---------- my clothes: add / edit ---------- */
+let mdraft = null;
+function openMine(id){
+  const m = mine.find(x=>x.id===id);
+  mdraft = m ? {...m} : {id:null, n:"", cat:"상의", s:"", size:"", memo:"", sh:null, ch:null, len:null, w:null, hem:null};
+  renderMineForm();
+  $("mine-form").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+function renderMineForm(){
+  const f = $("mine-form"), m = mdraft; f.hidden = !m; if (!m){ f.innerHTML = ""; return; }
+  const cols = CAT_KEYS[m.cat];
+  f.innerHTML = `<div class="mine-form">
+    <b>${m.id ? "내 옷 수정" : "내 옷 추가"}</b>
+    <div class="form-grid">
+      <div class="field"><label class="label" for="m-n">이름</label><input id="m-n" value="${esc(m.n)}" placeholder="예: 티셔츠(화이트)"></div>
+      <div class="field"><label class="label" for="m-cat">구분</label><select id="m-cat">${CATS.map(c=>`<option ${c===m.cat?"selected":""}>${c}</option>`).join("")}</select></div>
+      <div class="field"><label class="label" for="m-s">구매처</label><input id="m-s" value="${esc(m.s)}"></div>
+      <div class="field"><label class="label" for="m-size">사이즈${m.cat==="신발"?" (예: 265)":""}</label><input id="m-size" value="${esc(m.size)}" ${m.cat==="신발"?'inputmode="numeric"':""}></div>
+    </div>
+    ${cols.length ? `<dl class="sz-m">${cols.map(([k,name])=>`<div><dt>${name}</dt><dd><input type="number" inputmode="decimal" step="0.1" data-mk="${k}" value="${m[k]??""}" aria-label="${name}"></dd></div>`).join("")}</dl>` : ""}
+    <div class="field"><label class="label" for="m-memo">비고</label><input id="m-memo" value="${esc(m.memo)}"></div>
+    <div class="row"><button type="button" class="btn primary" id="m-save">노션에 저장</button><button type="button" class="btn" id="m-cancel">취소</button><span class="status" id="m-status"></span></div>
+  </div>`;
+}
+function readMine(){
+  const m = mdraft; if (!m || !$("m-n")) return;
+  m.n = $("m-n").value.trim(); m.cat = $("m-cat").value; m.s = $("m-s").value.trim(); m.size = $("m-size").value.trim(); m.memo = $("m-memo").value.trim();
+  $("mine-form").querySelectorAll("[data-mk]").forEach(el=>{ const x = parseFloat(el.value); m[el.dataset.mk] = isNaN(x) ? null : x; });
+}
+async function saveMine(){
+  readMine(); const m = mdraft;
+  if (!m.n){ $("m-status").textContent = "이름을 넣어주세요."; return; }
+  const props = {"이름": m.n, "구분": m.cat, "구매처": m.s || null, "사이즈": m.size || null, "비고": m.memo || null};
+  for (const [k, col] of CAT_KEYS[m.cat]) props[col] = m[k];
+  if (!m.id) for (const k of Object.keys(props)) if (props[k]==null) delete props[k];
+  $("m-save").disabled = true; $("m-status").textContent = "저장 중…";
+  try {
+    if (m.id) await mcp.callTool(NOTION, "notion-update-page", {page_id:m.id, command:"update_properties", properties:props});
+    else await mcp.callTool(NOTION, "notion-create-pages", {parent:{type:"data_source_id", data_source_id:MY_DS}, pages:[{properties:props}]});
+    mdraft = null; renderMineForm();
+    $("mine-status").textContent = `「${m.n}」 저장했습니다.`;
+    await load();
+  } catch(e){
+    $("m-status").textContent = "저장 실패 — " + mcpCopy(e);
+    const b = $("m-save"); if (b) b.disabled = false;
+  }
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click", e=>{
-  const f = e.target.closest("[data-f]");
-  if (f){ typeFilter = f.dataset.f; store.set("kc-filter", typeFilter); renderFilters(); renderGrid(); return; }
-  const b = e.target.closest(".dec button");
-  if (b && !b.disabled){ setDecision(b.dataset.id, b.dataset.v); return; }
-  if (e.target.id==="pick"){ $("in-files").click(); return; }
-  if (e.target.id==="save-link"){ saveLink(); return; }
-  const z = e.target.closest("[data-zoom]");
-  if (z){ $("zoom-img").src = "/_blob/" + z.dataset.zoom; $("zoom").showModal(); return; }
-  if (e.target.closest("#zoom")){ $("zoom").close(); return; }
-  if (e.target.id==="extract"){ extract(); return; }
-  if (e.target.id==="d-save"){ saveDraft(); return; }
-  if (e.target.id==="d-cancel"){ draft=null; renderDraft(); return; }
-  if (e.target.id==="d-addsize"){ readDraft(); draft.sizes.push({l:"",sh:null,ch:null,sl:null,len:null,w:null,hem:null}); renderDraft(); return; }
-  const del = e.target.closest("[data-del]");
-  if (del){ readDraft(); draft.sizes.splice(+del.dataset.del,1); renderDraft(); }
+  const t = e.target, on = sel => t.closest(sel);
+  let x;
+  if ((x = on("[data-f]"))){ typeFilter = x.dataset.f; store.set("kc-filter", typeFilter); renderFilters(); renderGrid(); return; }
+  if ((x = on(".dec button"))){ if (!x.disabled) setDecision(x.dataset.id, x.dataset.v); return; }
+  if ((x = on("[data-edit]"))){ if (!x.disabled) openEdit(x.dataset.edit); return; }
+  if ((x = on("[data-trash]"))){ if (!x.disabled) setTrash(x.dataset.trash, true); return; }
+  if ((x = on("[data-restore]"))){ if (!x.disabled) setTrash(x.dataset.restore, false); return; }
+  if ((x = on("[data-purge]"))){ if (!x.disabled) purge([x.dataset.purge]); return; }
+  if (t.id==="purge-all"){ purge(items.filter(i=>i.trash).map(i=>i.id)); return; }
+  if ((x = on("[data-rep]"))){ rep = +x.dataset.rep; renderThumbs(); return; }
+  if ((x = on("[data-unfile]"))){ const i = +x.dataset.unfile; files.splice(i,1); if (rep===i) rep = 0; else if (rep>i) rep--; renderThumbs(); return; }
+  if ((x = on("[data-mine-edit]"))){ if (!x.disabled) openMine(x.dataset.mineEdit); return; }
+  if (t.id==="mine-add"){ if (mcp) openMine(null); return; }
+  if (t.id==="m-save"){ saveMine(); return; }
+  if (t.id==="m-cancel"){ mdraft = null; renderMineForm(); return; }
+  if (t.id==="pick"){ $("in-files").click(); return; }
+  if (t.id==="save-link"){ saveLink(); return; }
+  if (t.id==="extract"){ extract(); return; }
+  if (t.id==="manual"){ if (!draft){ draft = newDraft($("in-link").value.trim()); draft.sizes = [blankSize()]; renderDraft(); } return; }
+  if (t.id==="d-save"){ saveDraft(); return; }
+  if (t.id==="d-cancel" || t.id==="d-cancel2"){ closeDraft(); $("extract-status").textContent = ""; return; }
+  if (t.id==="d-addsize"){ readDraft(); draft.sizes.push(blankSize()); renderDraft(); return; }
+  if ((x = on("[data-del]"))){ readDraft(); draft.sizes.splice(+x.dataset.del,1); renderDraft(); return; }
+  if ((x = on("[data-zoom]"))){ $("zoom-img").src = "/_blob/" + x.dataset.zoom; $("zoom").showModal(); return; }
+  if (on("#zoom")){ $("zoom").close(); return; }
+});
+document.addEventListener("change", e=>{
+  const s = e.target.closest("[data-cmp]");
+  if (s){ setCompare(s.dataset.cmp, s.value); return; }
+  if (e.target.id==="m-cat"){ readMine(); renderMineForm(); }
 });
 $("in-files").addEventListener("change", e=>{ takeFiles(e.target.files); e.target.value=""; });
 const drop = $("drop");
@@ -645,9 +857,9 @@ const drop = $("drop");
 drop.addEventListener("drop", e=>takeFiles(e.dataTransfer.files));
 document.addEventListener("paste", e=>{ if (e.clipboardData?.files?.length && $("add-panel").open) takeFiles(e.clipboardData.files); });
 $("sort").addEventListener("change", renderGrid);
-$("reload").addEventListener("click", ()=>load(true));
+$("reload").addEventListener("click", ()=>load());
 
-renderMine(); renderAll();
+renderAll();
 
 /* ---------- capabilities ---------- */
 (async ()=>{
@@ -656,7 +868,7 @@ renderMine(); renderAll();
   const [m, s, a] = await Promise.all([c.use("mcp"), c.use("sample"), c.use("assets")]);
   mcp = m; sample = s; assets = a;
   if (sample){ try { const lim = await sample.limits(); if (!lim?.images) $("pick").hidden = true; } catch(e){} }
-  else { $("extract").disabled = true; $("extract-status").textContent = "이 화면에서는 캡처 읽기를 쓸 수 없습니다."; }
+  else { $("extract").disabled = true; $("extract-status").textContent = "이 화면에서는 캡처 읽기를 쓸 수 없습니다. 「직접 입력」을 쓰세요."; }
   if (!mcp){ setStatus("노션 연결 안 됨", true); showBanner("이 화면에서는 노션 연결을 쓸 수 없습니다. claude.ai에서 페이지를 열어주세요."); return; }
   load();
 })();

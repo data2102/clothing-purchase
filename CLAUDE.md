@@ -17,31 +17,38 @@
 |---|---|---|
 | 옷 쇼핑 리스트 (노션 DB) | https://app.notion.com/p/7bffa6934d1f445389d6dfa3f24917f1 | 데이터소스 `collection://4b8fb3bc-08ca-421e-be5e-927e164db79f` |
 | 기본 보기(view) | https://app.notion.com/p/7bffa6934d1f445389d6dfa3f24917f1?v=d0728fbfc25e4319a0443244965c159e | 비교판이 이 view를 읽는다 |
-| 내 옷 사이즈 (노션 페이지) | https://app.notion.com/p/1d920f17509d80819012cbfe8dfebcfe | 상의·하의 실측 표. 비교 기준 |
+| 옷 사이즈 (노션 페이지) | https://app.notion.com/p/1d920f17509d80819012cbfe8dfebcfe | 원래 실측 표(손대지 않음). 아래 DB·휴지통 페이지의 부모 |
+| 내 옷 사이즈 (노션 DB) | https://app.notion.com/p/54b0c8f7f41b48669d57c273d1c9d817?v=8b70f481f6cd444f86e3626359664852 | 데이터소스 `collection://51969fd0-e3b5-475a-8a8e-5f7bbf736580`. **비교 기준의 원본**. 비교판에서 추가·수정 |
+| 🗑 삭제한 옷 (노션 페이지) | https://app.notion.com/p/3e920f17509d8192a8b3cc1a5d54ff8c | 휴지통에서 「완전 삭제」한 쇼핑 리스트 행이 옮겨지는 곳 |
 | 콩순 옷장 비교판 (아티팩트) | https://claude.ai/artifact/K6azdzCdcRxpN8sUQv51NJ | 원본: `artifact/closet-compare.html` |
 
 ### 노션 DB 칸
 - 원래 칸: `옷 이름`(title) `종류`(셔츠/바지/신발/니트/맨투맨) `가격` `구매사이트` `구매링크` `사이즈`(글) `S` `M` `L`(글, "어깨 51 / 가슴 65.5 / 소매 61 / 총장 73" 형식) `캡쳐사진`(파일, 비어 있음)
 - 2026-09-28 추가: `결정`(살래/고민/패스) `비교사이즈`(글) `어깨` `가슴` `총장` `허리`(숫자) `사진ID`(글, 아티팩트 asset id)
-- **원래 칸은 지우거나 덮어쓰지 않는다.** 바꿀 게 있으면 새 칸을 추가한다.
+- 2026-09-28 추가(2): `비교옷ID`(글, 내 옷 사이즈 DB 페이지 id — 비어 있으면 자동) `휴지통`(체크박스)
+- **원래 칸은 지우거나 덮어쓰지 않는다.** 바꿀 게 있으면 새 칸을 추가한다. (사용자가 비교판 「수정」에서 직접 고친 값은 예외)
 
-### 비교 기준 (노션 「옷 사이즈」 기준, 단위 cm 단면)
-- 상의: 앨빈클로 M 55/58/70 · 페플 M 59/63/70 · 페플 이너 M 45/53/71 · 유니클로 M 45.5/51/69 · 지오다노 남방 M 47.6/55/75 · 체크남방 50/50/72 (어깨/가슴/총장)
-- 하의: 빅사이즈클럽 M 38/22/101(허리 큼) · 데케트 28 38/24.5/105(허리 맞음, 총장 수선) · MYCOB 슬랙스 38/19/90 (허리/밑단/총장)
-- 신발: **265**
-- 이 값은 비교판 코드에 고정돼 있다(`MY_TOPS` `MY_PANTS` `MY_SHOE`). 노션 「옷 사이즈」가 바뀌면 코드도 고친다.
+### 내 옷 사이즈 DB 칸
+`이름`(title) `구분`(상의/하의/신발) `구매처` `사이즈` `어깨` `가슴` `총장` `허리` `밑단`(숫자) `비고`
+
+### 비교 기준
+- 노션 「내 옷 사이즈」 DB를 비교판이 실시간으로 읽는다(코드에 고정값 없음). 처음 값은 「옷 사이즈」 페이지 표와 신발 265를 그대로 옮긴 것(2026-09-28).
+- 옷별 `비교옷ID`가 있으면 그 옷과, 없으면 치수 차이 합이 가장 작은 같은 구분의 옷과 비교한다.
 
 ## 비교판(아티팩트) 고치는 법
 
 1. `artifact/closet-compare.html`을 고친다.
 2. Artifact 도구로 publish 하되 **`url: https://claude.ai/artifact/K6azdzCdcRxpN8sUQv51NJ`를 꼭 넘긴다.** 안 넘기면 새 아티팩트가 생겨 링크가 바뀐다. 다른 세션에서 처음 고칠 때는 먼저 `action: "read"`로 현재 판을 읽고 그 위에 고친다.
-3. `capabilities`는 생략한다(생략하면 기존 선언 유지). 현재 선언: `mcp`(Notion: `notion-query-data-sources`, `notion-update-page`, `notion-create-pages`), `sample`, `assets`.
+3. `capabilities`는 생략한다(생략하면 기존 선언 유지). 현재 선언: `mcp`(Notion: `notion-query-data-sources`, `notion-update-page`, `notion-create-pages`, `notion-move-pages`), `sample`, `assets`.
 4. 고친 파일을 커밋한다. 저장소 원본과 게시본이 어긋나지 않게 한다.
 
 ### 노션 호출 모양 (실제 확인한 것)
 - 읽기: `notion-query-data-sources` `{data:{mode:"view", view_url}}` → payload `{results:[{…칸 이름: 값, url}], has_more}`. 페이지 id는 `url` 끝의 32자리.
 - 결정 저장: `notion-update-page` `{page_id, command:"update_properties", properties:{"결정":"살래"}}` (취소는 `null`)
 - 추가: `notion-create-pages` `{parent:{type:"data_source_id", data_source_id:"4b8fb3bc-08ca-421e-be5e-927e164db79f"}, pages:[{properties:{…}}]}`
+- 휴지통: `notion-update-page` `properties:{"휴지통":"__YES__"}` (되돌리기 `"__NO__"`). 읽을 때도 `"__YES__"/"__NO__"` 문자열.
+- 완전 삭제: `notion-move-pages` `{page_or_database_ids:[id], new_parent:{type:"page_id", page_id:"3e920f17509d8192a8b3cc1a5d54ff8c"}}` (2026-09-28 시험 행으로 확인)
+- 읽기 응답에서 빈 숫자 칸은 키 자체가 없다. 결과가 100개 넘으면 `has_more`/`next_cursor` → `start_cursor`로 이어 읽는다.
 
 ## 작업 규칙
 
