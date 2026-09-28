@@ -178,6 +178,11 @@ dialog.zoom p{color:#fff;text-align:center;margin:8px 0 0;font-size:13px}
 }
 @media (prefers-reduced-motion: no-preference){.card{transition:opacity .15s,border-color .15s}}
 /* photo picker */
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+label.btn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.cap-note{font-size:12px;color:var(--muted);margin-top:6px}
+.cap-note.warn{color:var(--warn)}
+@media (pointer:coarse){.desk-only{display:none}}
 .thumbs .th{position:relative;padding:0;border:2px solid transparent;border-radius:8px;background:none;line-height:0}
 .thumbs .th[aria-pressed="true"]{border-color:var(--accent)}
 .thumbs .th img{width:72px;height:72px}
@@ -229,8 +234,10 @@ dialog.zoom p{color:#fff;text-align:center;margin:8px 0 0;font-size:13px}
       <div class="row" id="link-row"><button type="button" class="btn" id="save-link">링크만 먼저 저장</button>
         <span class="status" id="link-status">어디서 봤는지만 남겨 두고, 사진·가격·사이즈는 나중에 채웁니다.</span></div>
       <div class="drop" id="drop">
-        <input id="in-files" type="file" accept="image/*" multiple hidden>
-        상품 화면·실측표 캡처를 여기에 끌어놓거나 <button type="button" class="btn" id="pick">사진 고르기</button>
+        <input id="in-files" class="vh" type="file" accept="image/*" multiple tabindex="-1">
+        <label for="in-files" class="btn primary" id="pick">📷 캡처 사진 고르기</label>
+        <div class="note" style="margin:6px auto 0">상품 화면·실측표 캡처를 여러 장 고를 수 있습니다<span class="desk-only"> (PC는 끌어놓기·붙여넣기도 됨)</span>.</div>
+        <div class="cap-note" id="cap-note" hidden></div>
         <div class="thumbs" id="thumbs" style="margin-top:10px;justify-content:center"></div>
         <div class="note" id="rep-note" style="margin:6px auto 0" hidden>사진을 누르면 대표 사진(카드에 보일 사진)으로 정해집니다.</div>
       </div>
@@ -438,7 +445,7 @@ function fitBlock(it){
 let items = [], mine = [];
 let typeFilter = store.get("kc-filter","전체");
 let budget = store.get("kc-budget", null);
-let mcp = null, sample = null, assets = null;
+let mcp = null, sample = null, assets = null, canImg = false;
 let busy = new Set();
 const live = () => items.filter(i=>!i.trash);
 
@@ -612,12 +619,17 @@ function newDraft(link){ return {mode:"add", name:"", type:"", site:siteOf(link)
 async function extract(){
   const text = $("in-text").value.trim(), link = $("in-link").value.trim() || draft?.link || "";
   if (!files.length && !text){ $("extract-status").textContent = "캡처나 실측표 글자를 하나 이상 넣어주세요."; return; }
-  if (!sample){ $("extract-status").textContent = "이 화면에서는 Claude 읽기를 쓸 수 없습니다."; return; }
+  if (!sample){ $("extract-status").textContent = "이 화면에서는 Claude 읽기를 쓸 수 없습니다. 「직접 입력」을 쓰세요."; return; }
+  if (files.length && !canImg && !text){
+    $("extract-status").textContent = "이 화면에서는 Claude가 사진을 못 읽습니다. 아래에 직접 입력하면 사진은 대표 사진으로 저장됩니다.";
+    if (!draft){ draft = newDraft(link); draft.sizes = [blankSize()]; }
+    renderDraft(); return;
+  }
   if (draft) readDraft();
   $("extract").disabled = true; $("extract-status").textContent = "Claude가 읽는 중… (보통 10~40초)";
   try {
     const input = PROMPT + (link ? `\n\n상품 링크: ${link}` : "") + (text ? `\n\n붙여넣은 글자:\n${text.slice(0,4000)}` : "");
-    const out = await sample.json(input, files.length ? {images: files} : {});
+    const out = await sample.json(input, files.length && canImg ? {images: files} : {});
     mergeExtract(out, link);
     $("extract-status").textContent = "읽었습니다. 틀린 곳을 고친 뒤 저장하세요.";
     renderDraft();
@@ -834,7 +846,6 @@ document.addEventListener("click", e=>{
   if (t.id==="mine-add"){ if (mcp) openMine(null); return; }
   if (t.id==="m-save"){ saveMine(); return; }
   if (t.id==="m-cancel"){ mdraft = null; renderMineForm(); return; }
-  if (t.id==="pick"){ $("in-files").click(); return; }
   if (t.id==="save-link"){ saveLink(); return; }
   if (t.id==="extract"){ extract(); return; }
   if (t.id==="manual"){ if (!draft){ draft = newDraft($("in-link").value.trim()); draft.sizes = [blankSize()]; renderDraft(); } return; }
@@ -867,8 +878,15 @@ renderAll();
   if (!c?.use){ setStatus("노션 연결을 쓸 수 없는 화면입니다", true); showBanner("claude.ai에서 이 페이지를 열어야 노션을 읽고 쓸 수 있습니다."); return; }
   const [m, s, a] = await Promise.all([c.use("mcp"), c.use("sample"), c.use("assets")]);
   mcp = m; sample = s; assets = a;
-  if (sample){ try { const lim = await sample.limits(); if (!lim?.images) $("pick").hidden = true; } catch(e){} }
-  else { $("extract").disabled = true; $("extract-status").textContent = "이 화면에서는 캡처 읽기를 쓸 수 없습니다. 「직접 입력」을 쓰세요."; }
+  if (sample){ try { const lim = await sample.limits(); canImg = !!lim?.images; } catch(e){ canImg = false; } }
+  const note = $("cap-note");
+  if (!canImg){
+    note.hidden = false; note.classList.add("warn");
+    note.textContent = assets
+      ? "이 화면에서는 Claude가 사진을 읽을 수 없습니다. 사진은 대표 사진으로 저장되니, 가격·사이즈는 「직접 입력」하거나 PC에서 「캡처 읽기」를 쓰세요."
+      : "이 화면에서는 사진을 읽거나 저장할 수 없습니다. 링크만 저장해 두고 PC에서 캡처를 올리세요.";
+  } else if (!assets){ note.hidden = false; note.textContent = "이 화면에서는 사진을 대표 사진으로 저장할 수 없습니다(읽기만 됩니다)."; }
+  if (!sample){ $("extract").disabled = true; $("extract-status").textContent = "이 화면에서는 캡처 읽기를 쓸 수 없습니다. 「직접 입력」을 쓰세요."; }
   if (!mcp){ setStatus("노션 연결 안 됨", true); showBanner("이 화면에서는 노션 연결을 쓸 수 없습니다. claude.ai에서 페이지를 열어주세요."); return; }
   load();
 })();
